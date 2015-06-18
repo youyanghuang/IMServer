@@ -10,6 +10,7 @@ from tornado.tcpserver import TCPServer
 
 
 class Connection(object):
+    # todo..陌陌群难点?
     clients = set()
 
     def __init__(self, stream, address):
@@ -20,27 +21,32 @@ class Connection(object):
         self.read_message()
 
         self.keep_alive()
-        print "A new user has entered the chat room.", address
+        print "connection count = ", len(Connection.clients)
+        #print "A new user has entered the chat room.", address
 
     def read_message(self):
         self.stream.read_until('\n', self.broadcast_messages)
 
     def broadcast_messages(self, data):
-        print "User said:", data[:-2], self.address
+        # print "User said:", data[:-2], self.address
         for conn in Connection.clients:
             conn.send_message(data)
         self.read_message()
 
     def send_message(self, data):
-        self.stream.write(data)
+        try:
+            self.stream.write(data)
+        except:
+            # todo.. 连接半关闭状态?
+            self.stream.close_fd()
+            Connection.clients.remove(self)
 
     def on_close(self):
         print "A user has left the chat room.", self.address
-        # todo.. 连接半关闭状态?
         Connection.clients.remove(self)
 
     def keep_alive(self):
-        # todo..[test] 1个package的负担就可以激活连接??
+        # todo..[test] 1个package的负担就可以激活连接?? 服务器宕机呢
         self.stream.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         self.stream.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE, 60)
         self.stream.socket.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL, 5)
